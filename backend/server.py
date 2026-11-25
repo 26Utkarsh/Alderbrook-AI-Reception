@@ -83,7 +83,7 @@ async def websocket_call(websocket: WebSocket):
     except Exception as exc:
         logger.exception("Voice session error: {}", exc)
         try:
-            await websocket.send_json({"type": "error", "message": str(exc)})
+            await websocket.send_json({"type": "error", "message": "Voice service unavailable. Please try again."})
         except Exception:
             pass
 

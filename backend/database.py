@@ -37,6 +37,13 @@ def normalize_time(raw: str) -> str:
     return text
 
 
+SLOT_TIME_ORDER = (
+    "substr(s.slot_time, 7, 2) ASC, "
+    "CASE WHEN substr(s.slot_time, 1, 2) = '12' THEN '00' ELSE substr(s.slot_time, 1, 2) END ASC, "
+    "substr(s.slot_time, 4, 2) ASC"
+)
+
+
 class ClinicStore:
     def __init__(self, db_path: Path):
         self.db_path = db_path
@@ -45,7 +52,7 @@ class ClinicStore:
 
     @contextmanager
     def _conn(self):
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn = sqlite3.connect(self.db_path, timeout=10.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
         try:
@@ -156,11 +163,11 @@ class ClinicStore:
             docs = [dict(r) for r in conn.execute("SELECT * FROM doctors ORDER BY name").fetchall()]
             for doc in docs:
                 slots = conn.execute(
-                    """
-                    SELECT id, slot_date, slot_time, is_booked
-                    FROM slots
-                    WHERE doctor_id = ? AND slot_date >= ?
-                    ORDER BY slot_date, slot_time
+                    f"""
+                    SELECT s.id, s.slot_date, s.slot_time, s.is_booked
+                    FROM slots s
+                    WHERE s.doctor_id = ? AND s.slot_date >= ?
+                    ORDER BY s.slot_date, {SLOT_TIME_ORDER}
                     """,
                     (doc["id"], today_str),
                 ).fetchall()
@@ -170,7 +177,7 @@ class ClinicStore:
     def list_appointments(self) -> list[dict[str, Any]]:
         with self._conn() as conn:
             rows = conn.execute(
-                """
+                f"""
                 SELECT
                     a.id,
                     a.slot_id,
@@ -191,7 +198,7 @@ class ClinicStore:
                 ORDER BY
                     CASE WHEN a.status = 'confirmed' THEN 0 ELSE 1 END,
                     s.slot_date ASC,
-                    s.slot_time ASC,
+                    {SLOT_TIME_ORDER},
                     a.created_at DESC
                 """
             ).fetchall()
@@ -228,7 +235,7 @@ class ClinicStore:
                 query += " AND s.slot_date = ?"
                 params.append(target_date.strip())
 
-            query += " ORDER BY d.name, s.slot_date, s.slot_time"
+            query += f" ORDER BY d.name, s.slot_date, {SLOT_TIME_ORDER}"
             rows = [dict(r) for r in conn.execute(query, params).fetchall()]
 
             grouped: dict[str, dict[str, Any]] = {}
@@ -291,7 +298,15 @@ class ClinicStore:
                     "error": f"{slot['doctor_name']} at {slot['slot_time']} on {slot['slot_date']} is already booked.",
                 }
 
-            conn.execute("UPDATE slots SET is_booked = 1 WHERE id = ?", (slot["slot_id"],))
+            cur = conn.execute(
+                "UPDATE slots SET is_booked = 1 WHERE id = ? AND is_booked = 0",
+                (slot["slot_id"],),
+            )
+            if cur.rowcount == 0:
+                return {
+                    "ok": False,
+                    "error": f"{slot['doctor_name']} at {slot['slot_time']} on {slot['slot_date']} is already booked.",
+                }
             appt_id = f"APT-{uuid.uuid4().hex[:6].upper()}"
             phone_display = format_phone(digits)
             conn.execute(
@@ -347,14 +362,14 @@ class ClinicStore:
                 ).fetchone()
             else:
                 rows = conn.execute(
-                    """
+                    f"""
                     SELECT a.id, a.slot_id, a.phone_display, a.patient_name,
                            d.name AS doctor_name, d.specialty, s.slot_date, s.slot_time
                     FROM appointments a
                     JOIN doctors d ON d.id = a.doctor_id
                     JOIN slots s ON s.id = a.slot_id
                     WHERE a.phone_digits = ? AND a.status = 'confirmed'
-                    ORDER BY s.slot_date ASC, s.slot_time ASC
+                    ORDER BY s.slot_date ASC, {SLOT_TIME_ORDER}
                     """,
                     (digits,),
                 ).fetchall()

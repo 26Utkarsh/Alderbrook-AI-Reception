@@ -149,6 +149,13 @@ function renderDoctors() {
     `;
     card.appendChild(meta);
 
+    if (!filtered.length) {
+      const empty = document.createElement("div");
+      empty.className = "doctor-sub";
+      empty.textContent = "No open slots";
+      card.appendChild(empty);
+    }
+
     const byDate = {};
     filtered.forEach((slot) => {
       if (!byDate[slot.slot_date]) byDate[slot.slot_date] = [];
@@ -370,20 +377,33 @@ async function startCall() {
   });
 
   state.audio = audio;
-  await audio.init();
-  audio.startRingback();
+  state.callActive = true;
+  updateLineIndicator();
+  drawWaveform();
+
+  try {
+    await audio.init();
+    if (!state.callActive || state.audio !== audio) return;
+    audio.startRingback();
+  } catch (_) {
+    appendTranscript("assistant", "Could not initialize browser audio.");
+    endCall();
+    return;
+  }
 
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   const ws = new WebSocket(`${proto}//${location.host}/ws/call`);
   ws.binaryType = "arraybuffer";
   state.ws = ws;
-  state.callActive = true;
-  updateLineIndicator();
-  drawWaveform();
 
   ws.onopen = async () => {
+    if (!state.callActive || state.ws !== ws) {
+      ws.close();
+      return;
+    }
     try {
       await audio.startMicrophone();
+      if (!state.callActive || state.ws !== ws) return;
       audio.stopRingback();
       setCallState("connected", "Connected");
       els.muteBtn.disabled = false;
@@ -410,10 +430,19 @@ async function startCall() {
         showBookingCard(msg.type, msg.appointment);
         fetchDashboard();
       } else if (msg.type === "error") {
-        appendTranscript("assistant", msg.message || "Voice service unavailable.");
+        const detail = msg.message || msg.data?.error || "Voice service unavailable.";
+        console.error("Voice pipeline error:", detail);
+        appendTranscript("assistant", msg.message || "Voice service unavailable. Please try again.");
         endCall();
       }
     } catch (_) {}
+  };
+
+  ws.onerror = () => {
+    if (state.callActive) {
+      appendTranscript("assistant", "Connection error. Please try again.");
+      endCall();
+    }
   };
 
   ws.onclose = () => {
@@ -436,14 +465,19 @@ function endCall(fromRemote = false) {
   }
 
   if (state.audio) {
-    if (wasActive) state.audio.playHangupTone();
+    const closingAudio = state.audio;
+    state.audio = null;
+    if (wasActive) closingAudio.playHangupTone();
     setTimeout(() => {
-      state.audio?.close();
-      state.audio = null;
+      closingAudio.close();
     }, 220);
   }
 
-  if (state.ws && !fromRemote && state.ws.readyState === WebSocket.OPEN) {
+  if (
+    state.ws &&
+    !fromRemote &&
+    (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)
+  ) {
     state.ws.close();
   }
   state.ws = null;

@@ -24,9 +24,17 @@ export class VoiceAudioBridge {
 
     this.outAnalyser = this.ctx.createAnalyser();
     this.outAnalyser.fftSize = 64;
+    this.compressor = this.ctx.createDynamicsCompressor();
+    this.compressor.threshold.value = -16;
+    this.compressor.knee.value = 12;
+    this.compressor.ratio.value = 3;
+    this.compressor.attack.value = 0.003;
+    this.compressor.release.value = 0.15;
+
     this.outGain = this.ctx.createGain();
-    this.outGain.gain.value = 1.2;
-    this.outGain.connect(this.outAnalyser);
+    this.outGain.gain.value = 1.15;
+    this.outGain.connect(this.compressor);
+    this.compressor.connect(this.outAnalyser);
     this.outAnalyser.connect(this.ctx.destination);
   }
 

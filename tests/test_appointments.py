@@ -23,6 +23,8 @@ def test_availability_booking_and_cancellation(tmp_path: Path):
 
     avail = store.check_availability(doctor_name="Dr Patel", target_date=today)
     assert avail["total_open_slots"] >= 2
+    slot_times = [s["time"] for s in avail["doctors"][0]["available_slots"]]
+    assert slot_times[0].endswith("AM"), f"Expected AM slot first, got {slot_times}"
     first_slot = avail["doctors"][0]["available_slots"][0]
     second_slot = avail["doctors"][0]["available_slots"][1]
 
