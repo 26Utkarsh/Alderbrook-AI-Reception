@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alderbrook Clinic — Reception Desk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Alderbrook Clinic</span>
+        <span class="brand-sep">/</span>
+        <span class="brand-sub">Reception</span>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="line-status" id="lineStatus">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Ready</span>
+        </div>
+        <button class="btn-call" id="tryCallBtn" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+          Try Call
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <section class="panel panel-doctors">
+      <div class="panel-head">
+        <div>
+          <h1>Schedule</h1>
+        </div>
+        <div class="panel-controls">
+          <button class="filter-toggle" id="openOnlyBtn" type="button" aria-pressed="false">Open only</button>
+          <div class="date-tabs" id="dateTabs" role="tablist" aria-label="Filter by date"></div>
+        </div>
+      </div>
+
+      <div class="doctors-list" id="doctorsList"></div>
+    </section>
+
+    <aside class="panel panel-appointments">
+      <div class="panel-head">
+        <h1>Appointments</h1>
+        <div class="panel-controls">
+          <button class="filter-toggle" id="activeOnlyBtn" type="button" aria-pressed="false">Active</button>
+          <span class="count-pill" id="apptCount">0</span>
+        </div>
+      </div>
+
+      <div class="appointments-list" id="appointmentsList"></div>
+    </aside>
+  </main>
+
+  <div class="phone-backdrop" id="phoneBackdrop" hidden>
+    <div class="phone-sheet" role="dialog" aria-modal="true" aria-labelledby="phoneTitle">
+      <div class="phone-head">
+        <div class="phone-caller">
+          <div class="phone-avatar">C</div>
+          <div>
+            <div class="phone-title" id="phoneTitle">Claire · Alderbrook Clinic</div>
+            <div class="phone-state" id="phoneState">Connecting...</div>
+          </div>
+        </div>
+        <div class="phone-timer" id="phoneTimer">00:00</div>
+      </div>
+
+      <div class="waveform-wrap">
+        <canvas id="waveformCanvas" width="340" height="46"></canvas>
+      </div>
+
+      <div class="phone-card-slot" id="phoneCardSlot"></div>
+
+      <div class="phone-transcript" id="phoneTranscript">
+        <div class="transcript-empty" id="transcriptEmpty">
+          Listening. State your number to book or cancel.
+        </div>
+      </div>
+
+      <div class="phone-controls">
+        <button class="ctrl-btn ctrl-mute" id="muteBtn" type="button" disabled>
+          <svg id="micIconOn" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+          <svg id="micIconOff" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden aria-hidden="true">
+            <line x1="2" x2="22" y1="2" y2="22"/>
+            <path d="M18.89 13.23A7.12 7.12 0 0 0 19 12v-2"/>
+            <path d="M5 10v2a7 7 0 0 0 12 5"/>
+            <path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/>
+            <path d="M9 9v3a3 3 0 0 0 5.12 2.12"/>
+            <line x1="12" x2="12" y1="19" y2="22"/>
+          </svg>
+          <span id="muteLabel">Mute</span>
+        </button>
+
+        <button class="ctrl-btn ctrl-hangup" id="hangupBtn" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/>
+            <line x1="22" x2="2" y1="2" y2="22"/>
+          </svg>
+          <span id="hangupLabel">End Call</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

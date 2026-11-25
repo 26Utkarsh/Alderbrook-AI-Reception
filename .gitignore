@@ -1,0 +1,9 @@
+.venv/
+.env
+clinic.db
+__pycache__/
+**/__pycache__/
+.pytest_cache/
+shots/
+*.mp4
+*.pyc
